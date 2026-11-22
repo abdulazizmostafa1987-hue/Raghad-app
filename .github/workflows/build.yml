@@ -1,1 +1,52 @@
-
+name: Build Raghad APK
+on:
+  push:
+    branches: [main, master]
+    paths: ['raghad_project.zip', '.github/workflows/build.yml']
+  workflow_dispatch:
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+      - name: Unzip project
+        run: unzip -q raghad_project.zip -d app
+      - name: Generate Android platform
+        working-directory: app/raghad
+        run: |
+          flutter create . --platforms=android --org com.raghad --project-name raghad
+          rm -f test/widget_test.dart
+          M=android/app/src/main/AndroidManifest.xml
+          sed -i 's#<application#<uses-permission android:name="android.permission.INTERNET"/>\n    <queries><intent><action android:name="android.intent.action.TTS_SERVICE"/></intent></queries>\n    <application#' $M
+          sed -i 's/flutter\.minSdkVersion/23/' android/app/build.gradle*
+          sed -i 's#android:label="raghad"#android:label="رغد"#' $M
+      - name: Dependencies
+        working-directory: app/raghad
+        run: flutter pub get
+      - name: Analyze
+        working-directory: app/raghad
+        run: flutter analyze --no-fatal-infos
+      - name: Test
+        working-directory: app/raghad
+        run: flutter test
+      - name: Build APK
+        working-directory: app/raghad
+        run: flutter build apk --release
+      - name: Build AAB
+        working-directory: app/raghad
+        run: flutter build appbundle --release
+      - uses: actions/upload-artifact@v4
+        with:
+          name: raghad-apk
+          path: app/raghad/build/app/outputs/flutter-apk/app-release.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: raghad-aab-debug-signed
+          path: app/raghad/build/app/outputs/bundle/release/app-release.aab
