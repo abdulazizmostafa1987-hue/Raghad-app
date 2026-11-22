@@ -1,0 +1,21 @@
+name: Publish content packs
+on:
+  push:
+    paths:
+      - 'content-packs/*.json'
+      - '!content-packs/manifest.json'
+permissions:
+  contents: write
+jobs:
+  manifest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: python3 tools/make_manifest.py
+        env:
+          BASE: https://raw.githubusercontent.com/${{ github.repository }}/${{ github.ref_name }}/content-packs
+      - run: |
+          git config user.name github-actions
+          git config user.email actions@github.com
+          git add content-packs/manifest.json
+          git diff --cached --quiet || (git commit -m "update manifest" && git push)
